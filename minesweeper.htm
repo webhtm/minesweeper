@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        color: white;
+        flex-direction: column;
+    }
+    .minesweeper {
+        background-color: #333;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        padding: 20px;
+        text-align: center;
+        max-width: 90%;
+        overflow: auto;
+    }
+    .row {
+        display: flex;
+    }
+    .cell {
+        width: 30px;
+        height: 30px;
+        background-color: #999;
+        border: 1px solid #ccc;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 1px;
+        font-size: 18px;
+        color: #333;
+        cursor: pointer;
+    }
+    .cell:hover {
+        background-color: #ccc;
+    }
+    .cell.revealed {
+        background-color: #fff;
+        cursor: default;
+    }
+    .cell.mine {
+        background-color: #ff6347;
+        color: #fff;
+    }
+    .cell.number {
+        background-color: #f0f0f0;
+    }
+    .row.highlighted {
+        background-color: #ffcccb;
+    }
+    .score {
+        margin-top: 10px;
+        font-size: 18px;
+        color: #fff;
+    }
+
+    @media screen and (max-width: 600px) {
+        .minesweeper {
+            padding: 10px;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+        }
+        .score {
+            font-size: 14px;
+        }
+    }
+</style>
+</head>
+<body>
+    <div class="minesweeper" id="minesweeper"></div>
+    <div class="score" id="score"></div>
+
+    <script>
+        var numRows = 10;
+        var numCols = 10;
+        var numMines = 15;
+
+        var grid = [];
+        var flagsUsed = 0;
+
+        function initializeGrid() {
+            var minesPlaced = 0;
+            for (var r = 0; r < numRows; r++) {
+                grid[r] = [];
+                for (var c = 0; c < numCols; c++) {
+                    grid[r][c] = {
+                        isMine: false,
+                        revealed: false,
+                        flagged: false,
+                        adjacentMines: 0
+                    };
+                }
+            }
+
+            while (minesPlaced < numMines) {
+                var r = Math.floor(Math.random() * numRows);
+                var c = Math.floor(Math.random() * numCols);
+                if (!grid[r][c].isMine) {
+                    grid[r][c].isMine = true;
+                    minesPlaced++;
+                }
+            }
+        }
+
+        function revealCell(row, col) {
+            var cell = document.getElementById('cell_' + row + '_' + col);
+            if (!cell || grid[row][col].revealed || grid[row][col].flagged) return;
+
+            grid[row][col].revealed = true;
+            cell.classList.add('revealed');
+
+            if (grid[row][col].isMine) {
+                cell.classList.add('mine');
+                cell.textContent = '💣';
+                highlightRow(row);
+                gameOver();
+                return;
+            }
+
+            var adjacentMines = calculateAdjacentMines(row, col);
+            if (adjacentMines > 0) {
+                cell.textContent = adjacentMines;
+                cell.classList.add('number');
+            } else {
+                revealEmptyCells(row, col);
+            }
+
+            checkWin();
+        }
+
+        function calculateAdjacentMines(row, col) {
+            var count = 0;
+            for (var r = Math.max(0, row - 1); r <= Math.min(numRows - 1, row + 1); r++) {
+                for (var c = Math.max(0, col - 1); c <= Math.min(numCols - 1, col + 1); c++) {
+                    if (grid[r][c].isMine) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        function revealEmptyCells(row, col) {
+            for (var r = Math.max(0, row - 1); r <= Math.min(numRows - 1, row + 1); r++) {
+                for (var c = Math.max(0, col - 1); c <= Math.min(numCols - 1, col + 1); c++) {
+                    if (!grid[r][c].revealed && !grid[r][c].flagged) {
+                        revealCell(r, c);
+                    }
+                }
+            }
+        }
+
+        function toggleFlag(row, col) {
+            var cell = document.getElementById('cell_' + row + '_' + col);
+            if (!cell || grid[row][col].revealed) return;
+
+            if (grid[row][col].flagged) {
+                grid[row][col].flagged = false;
+                cell.innerHTML = '';
+                flagsUsed--;
+            } else {
+                if (flagsUsed < numMines) {
+                    grid[row][col].flagged = true;
+                    cell.innerHTML = '&#9873;';
+                    flagsUsed++;
+                }
+            }
+
+            var scoreDisplay = document.getElementById('score');
+            scoreDisplay.textContent = 'Mines flagged: ' + flagsUsed + ' / Total mines: ' + numMines;
+        }
+
+        function highlightRow(row) {
+            var rowDiv = document.getElementsByClassName('row')[row];
+            if (rowDiv) {
+                rowDiv.classList.add('highlighted');
+            }
+        }
+
+        function gameOver() {
+            for (var r = 0; r < numRows; r++) {
+                for (var c = 0; c < numCols; c++) {
+                    var cell = document.getElementById('cell_' + r + '_' + c);
+                    if (grid[r][c].isMine) {
+                        cell.classList.add('revealed', 'mine');
+                        cell.textContent = '💣';
+                    }
+                }
+            }
+            setTimeout(() => alert("Game Over!"), 100);
+        }
+
+        function checkWin() {
+            let revealedCount = 0;
+            for (let r = 0; r < numRows; r++) {
+                for (let c = 0; c < numCols; c++) {
+                    if (grid[r][c].revealed) revealedCount++;
+                }
+            }
+            if (revealedCount === numRows * numCols - numMines) {
+                setTimeout(() => alert("You win!"), 100);
+            }
+        }
+
+        function initializeGame() {
+            var minesweeper = document.getElementById('minesweeper');
+            minesweeper.innerHTML = '';
+            flagsUsed = 0;
+
+            initializeGrid();
+
+            for (var r = 0; r < numRows; r++) {
+                var rowDiv = document.createElement('div');
+                rowDiv.classList.add('row');
+                for (var c = 0; c < numCols; c++) {
+                    var cellDiv = document.createElement('div');
+                    cellDiv.id = 'cell_' + r + '_' + c;
+                    cellDiv.classList.add('cell');
+                    cellDiv.onclick = (function(row, col) {
+                        return function() {
+                            revealCell(row, col);
+                        };
+                    })(r, c);
+                    cellDiv.oncontextmenu = (function(row, col) {
+                        return function(event) {
+                            event.preventDefault();
+                            toggleFlag(row, col);
+                        };
+                    })(r, c);
+                    rowDiv.appendChild(cellDiv);
+                }
+                minesweeper.appendChild(rowDiv);
+            }
+
+            var scoreDisplay = document.getElementById('score');
+            scoreDisplay.textContent = 'Mines flagged: 0 / Total mines: ' + numMines;
+        }
+
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>
+
